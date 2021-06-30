@@ -2,7 +2,12 @@ Silo -- a simple, general purpose file system for LSL via HTTP
     version 2006-07-09-beta
     by Zero Linden
 
+    version 2021-06-29
+    Updated by John Dougan
+
     Copyright (c) 2006 Linden Lab
+    Licensed under the "MIT" open source license.
+    Changes Copyright (c) 2021 John Dougan
     Licensed under the "MIT" open source license.
 
 
@@ -20,7 +25,9 @@ only access text.)
 
 Silo is installed on a web server that runs PHP.  You need PHP
 version 4.3.0 or later.  The instructions here are for the Apache
-web server and work with version 1 or 2 of the server.
+web server and work with version 1 or 2 of the server. If you want
+to install it on a Replit repl, see the instructions in the next
+section.
 
 The installed silo script will have a "base URL" that is the start
 of the storage tree.  It will be highly dependent on your server
@@ -93,10 +100,10 @@ possible.
     Alias directive that maps the directory, and provides the nice,
     clean base URL.
 
-5) Test the set up by copying the files test.py and uuid.py to any
-machine that has python installed.  It needn't be the same machine
+5) Test the set up by copying the file test.py to any
+machine that has python 3 installed.  It needn't be the same machine
 as the server.  In a command shell, change to the the directory
-with test.py and uuid.py, and run:
+with test.py, and run:
 
     python test.py <baseURL> -v
 
@@ -107,6 +114,40 @@ This should report that it passes all the tests.  If not, something
 might be wrong with your configuration, or there may be some
 incompatibility between the script and your system.  If you suspect
 the later, let me know the details!
+
+
+==== REPLIT ====
+
+The 2021 releases have a Makefile included to make it easier to
+setup a PHP Web Server repl. Get the zip file from
+  https://github.com/jdougan/zeros-silo-2021/archive/refs/heads/master.zip
+Upload it to the repl by dragging to the left hand file list pane.
+
+Then at the shell prompt
+  unzip zeros-silo-2021-master.zip
+  mv zeros-silo-2021-master/* .
+  rm -rf zeros-silo-2021-master
+  make all
+
+Then hit the run button to start the server. The repl should open
+a web pane, it should show a Not Found error. The URL at the top of
+the web pane is the external url that replit has assigned this repl.
+Replit is taking care of TLS protocol conversion for you so it will
+be an https: URL.
+So the base url for accessing the Silo externally will look
+something like (NO trailing slash)
+  https://replname.username.repl.co/silo.php
+
+Run `make tests` and check test.log to be sure they have passed.
+If so, the silo is ready to use.
+
+There is a timeout system for "inactive" repls with an optional
+auto restart feature if you are paying:
+  https://docs.replit.com/repls/always-on
+
+If you really need to keep the repl up at all times, get one of the
+apps/code that will keep http events going at it to keep the
+session alive. This is used to run a lot of discord bots.
 
 
 ==== CONCEPTS ====
@@ -244,5 +285,7 @@ silo easily using curl:
 
 This script was written by Zero Linden.  You can conact him at
     zero.linden@lindenlab.com
-    
+
+Zero Linden (Mark Lentczner) is no lnger working for Linden Labs and as far as I can tell has nothing more to do with Second Life.
+These scripts have been updated by John Dougan <jdougan@acm.org> and there is a github repositoy at https://github.com/jdougan/zeros-silo-2021 . The original 2006 version is in a github repository at https://github.com/jdougan/zeros-silo .
 

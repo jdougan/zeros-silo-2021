@@ -9,3 +9,10 @@ Silo -- a simple, general purpose file system for LSL via HTTP
 
 2006-07-09-beta
     first public release
+
+Updated by John Dougan
+  version 2021-06-29
+Changes Copyright (c) 2021 John Dougan
+
+2021-06-29
+    Updated test.py to Python 3, added Repl.it support, dropped UUID.py as it is now in Python 3

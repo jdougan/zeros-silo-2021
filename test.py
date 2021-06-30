@@ -1,5 +1,8 @@
 """
     Silo -- a simple, general purpose file system for LSL via HTTP
+        version 2021-06-29
+        Updated to Python 3 by John Dougan
+
         version 2006-07-09-beta
         by Zero Linden
     
@@ -8,25 +11,30 @@
     
     This file is only part of the whole distribution.
         test.py -- unit tests
+    run by speciftying the root of the Silo as the sole argument
+        python3 test.py http://silo.host.com/silopath > test.log
 """
 
 import os
-import httplib
+import http.client
 import sys
 import time
 import unittest
-import urlparse
+import urllib.parse
 
 NeedsKey = False
 #NeedsKey = True
     # if you change $firstPath in silo.php to be $keyPat
     # then change this to set NeedsKey to True
 
+class SiloException (BaseException) :
+    pass
+
 class Silo:
     
     def __init__(self, url):
         self.baseURL = url
-        parts = urlparse.urlparse(url, 'http', False)
+        parts = urllib.parse.urlparse(url, 'http', False)
         (self.baseScheme, self.baseHost, self.basePath) = parts[0:3]
     
     def goodStatus(self, status):
@@ -34,12 +42,12 @@ class Silo:
         
     def ensureGoodStatus(self, status, content):
         if not self.goodStatus(status):
-            raise "unexpected http error status %d: %s" % (status, str(content))
+            raise SiloException("unexpected http error status %d: %s" % (status, str(content)))
     
     def encode(self, body, encoding='utf-8'):
         headers = {}
         if body != None:
-            body = unicode(body).encode(encoding)
+            body = str(body).encode(encoding)
             headers['Content-Type'] = 'text/plain;charset=' + encoding
         return (body, headers)
     
@@ -57,10 +65,10 @@ class Silo:
             if paramParts[0] == 'charset' and len(paramParts) == 2:
                 charset = paramParts[1]
 
-        return unicode(rawContent, charset)
+        return str(rawContent, charset)
 
     def rawConnect(self, verb, path, rawBody=None, headers={}):
-        connection = httplib.HTTPConnection(self.baseHost)
+        connection = http.client.HTTPConnection(self.baseHost)
         connection.request(verb, self.basePath + path, rawBody, headers)
         response = connection.getresponse()
         status = response.status
@@ -70,6 +78,7 @@ class Silo:
             # according to RFC 2616, section 7.2.1, we are allowed to guess
             # the mime type in the absence of the Content-Type header
             # however, LSL takes a stricter view and will not guess text
+        connection.close()
         return (status, rawContent, mimeType)
 
     def connect(self, verb, path, body=None, encoding='utf-8'):
@@ -97,16 +106,16 @@ class Silo:
     def missing(self, path):
         (status, content) = self.connect("GET", path)
         if self.goodStatus(status):
-            raise "unexpected (%d) status for %s: %s" \
-                % (status, path, str(content))
+            raise SiloException("unexpected (%d) status for %s: %s" \
+                % (status, path, str(content)))
 
 silo = None
 
 class Tests_A_Setup(unittest.TestCase):
     def test000_baseURL(self):
-        self.failUnlessEqual(silo.baseScheme, 'http')
-        self.failUnless(silo.baseHost)
-        self.failUnless(silo.basePath)
+        self.assertEqual(silo.baseScheme, 'http')
+        self.assertTrue(silo.baseHost)
+        self.assertTrue(silo.basePath)
 
         
 class Tests_B_PathError(unittest.TestCase):
@@ -197,7 +206,7 @@ class Tests_C_Basic(unittest.TestCase):
         silo.missing(where)
         silo.put(where, "lalala")
         r = silo.get(where)
-        self.assertEquals(r, "lalala")
+        self.assertEqual(r, "lalala")
         silo.delete(where)
         silo.missing(where)
         
@@ -206,15 +215,15 @@ class Tests_C_Basic(unittest.TestCase):
         below = above + "/below"
         silo.put(above, "alpha");
         silo.put(below, "beta");
-        self.assertEquals(silo.get(above), "alpha")
-        self.assertEquals(silo.get(below), "beta")
+        self.assertEqual(silo.get(above), "alpha")
+        self.assertEqual(silo.get(below), "beta")
         
     def test003_dirListing(self):
         silo.put(self.key + "/one", "uno")
         silo.put(self.key + "/two", "due")
         silo.put(self.key + "/three", "tre")
         r = silo.get(self.key + "/")
-        self.assertEquals(r, "one\nthree\ntwo\n")
+        self.assertEqual(r, "one\nthree\ntwo\n")
     
     def ensureWriteToFirstReadsFromSecond(self, keyA, keyB, delDir = False):
         silo.put(keyA, "insensitive")
@@ -244,9 +253,9 @@ class Tests_C_Basic(unittest.TestCase):
     def test005_putStatus(self):
         k = self.key + "/new-node"
         (status, content) = silo.connect("PUT", k, "first time")
-        self.assertEquals(status, 201)
+        self.assertEqual(status, 201)
         (status, content) = silo.connect("PUT", k, "second time")
-        self.assertEquals(status, 200)
+        self.assertEqual(status, 200)
     
 class Tests_D_RoundTrip(unittest.TestCase):
     key = "/fa4b13c9-ed3c-462a-be6a-011c1bc464a9"
@@ -261,7 +270,7 @@ class Tests_D_RoundTrip(unittest.TestCase):
     
     def roundTrip(self, value, encoding="utf-8"):
         silo.put(self.key, value, encoding)
-        self.assertEquals(silo.get(self.key), value)
+        self.assertEqual(silo.get(self.key), value)
     
     def test001_simple(self):
         self.roundTrip("")
@@ -279,16 +288,16 @@ class Tests_D_RoundTrip(unittest.TestCase):
         self.roundTrip("hello there", 'us-ascii')
 
     def test004_encodingISOLatin1(self):
-        self.roundTrip(u'\u00C5ngstr\u00F6m', 'iso-8859-1')
+        self.roundTrip('\u00C5ngstr\u00F6m', 'iso-8859-1')
 
     def test005_encodingUTF16(self):
-        self.roundTrip(u'\u00C5ngstr\u00F6m \u03b2 \u2222', 'utf-16')
+        self.roundTrip('\u00C5ngstr\u00F6m \u03b2 \u2222', 'utf-16')
 
     def test006_encodingUTF16LE(self):
-        self.roundTrip(u'\u00C5ngstr\u00F6m \u03b2 \u2222', 'utf-16le')
+        self.roundTrip('\u00C5ngstr\u00F6m \u03b2 \u2222', 'utf-16le')
 
     def test007_encodingUTF16BE(self):
-        self.roundTrip(u'\u00C5ngstr\u00F6m \u03b2 \u2222', 'utf-16be')
+        self.roundTrip('\u00C5ngstr\u00F6m \u03b2 \u2222', 'utf-16be')
 
 
 class Tests_Z_Timing(unittest.TestCase):
@@ -305,7 +314,7 @@ class Tests_Z_Timing(unittest.TestCase):
         
         for k in keys:
             silo.put(k, data)
-            self.assertEquals(silo.get(k), data)
+            self.assertEqual(silo.get(k), data)
     
     def deleteKeys(self, keys):
         for k in keys:
@@ -313,7 +322,7 @@ class Tests_Z_Timing(unittest.TestCase):
             
     def timingRuns(self, keyCount):
         (status, content) = silo.connect("GET", self.key)
-        self.failIf(silo.goodStatus(status),
+        self.assertFalse(silo.goodStatus(status),
             "the silo's data tree isn't clear; try 'rm -rf data/*'")
         silo.put(self.key, "marker")
         
@@ -335,6 +344,9 @@ class Tests_Z_Timing(unittest.TestCase):
         self.timingRuns(10000)
         
 if __name__ == '__main__':
+    if len(sys.argv) != 2:
+      print("test.py: Expecting single argument of a Silo root URL")
+      exit(1)
     silo = Silo(sys.argv[1])
     del sys.argv[1]
     unittest.main()
