@@ -34,6 +34,7 @@ class Silo:
     
     def __init__(self, url):
         self.baseURL = url
+        # The parse defaut scheme maybe shoulf default to https in our modern crypto world
         parts = urllib.parse.urlparse(url, 'http', False)
         (self.baseScheme, self.baseHost, self.basePath) = parts[0:3]
     
@@ -68,7 +69,10 @@ class Silo:
         return str(rawContent, charset)
 
     def rawConnect(self, verb, path, rawBody=None, headers={}):
-        connection = http.client.HTTPConnection(self.baseHost)
+        if (self.baseScheme == 'https'):
+            connection = http.client.HTTPSConnection(self.baseHost)
+        else:
+            connection = http.client.HTTPConnection(self.baseHost)
         connection.request(verb, self.basePath + path, rawBody, headers)
         response = connection.getresponse()
         status = response.status
@@ -113,7 +117,8 @@ silo = None
 
 class Tests_A_Setup(unittest.TestCase):
     def test000_baseURL(self):
-        self.assertEqual(silo.baseScheme, 'http')
+        self.assertTrue(silo.baseScheme in ['http' , 'https'])
+        # self.assertEqual(silo.baseScheme, 'http')
         self.assertTrue(silo.baseHost)
         self.assertTrue(silo.basePath)
 
@@ -348,6 +353,7 @@ if __name__ == '__main__':
       print("test.py: Expecting single argument of a Silo root URL")
       exit(1)
     silo = Silo(sys.argv[1])
+    print("Silo Base URL: ", sys.argv[1], file=sys.stderr)
     del sys.argv[1]
     unittest.main()
 
