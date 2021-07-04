@@ -13,6 +13,11 @@
         test.py -- unit tests
     run by speciftying the root of the Silo as the sole argument
         python3 test.py http://silo.host.com/silopath > test.log
+
+    There are behavior difference between web servers, these
+    tests are biased for Apache.
+    The built-in PHP Web Server urlencodes some illegal chars
+    and then they just work.
 """
 
 import os
@@ -21,6 +26,9 @@ import sys
 import time
 import unittest
 import urllib.parse
+
+# Prints extra telemetry to stderr if True
+SHOW_PATH = False
 
 NeedsKey = False
 #NeedsKey = True
@@ -73,6 +81,9 @@ class Silo:
             connection = http.client.HTTPSConnection(self.baseHost)
         else:
             connection = http.client.HTTPConnection(self.baseHost)
+        if SHOW_PATH :
+            print("", file=sys.stderr)
+            print(self.basePath + path, file=sys.stderr)
         connection.request(verb, self.basePath + path, rawBody, headers)
         response = connection.getresponse()
         status = response.status
@@ -182,17 +193,65 @@ class Tests_B_PathError(unittest.TestCase):
         self.doPutExpectGood(self.key + "/%24x")
             # percent is only legal as an escape
 
-    def test010_disallowedCharacters(self):
+    def _test010_disallowedCharacters(self):
         disallowedPathChars = ".~:@!$&'()*,;=#?"
             # legal as part of a URI path, query or fragment (see RFC 3986)
         disallowedOtherChars = "\"<>[\\]^`{|}"
             # not legal in URI path, query or fragment
             # should include space and del, but cause some versions of Apache
             # heartburn if you do
-            
         for c in (disallowedPathChars + disallowedOtherChars):
             self.doPutExpectBad(self.key + "/x" + c + "x")
 
+    # The next two sests are more about testing the remote web
+    # server (apache vs php vs etc) So they have a lot of telemetry
+    # so you can evaluate them for yourself. asserts are for apache.
+    def test011_disallowedOtherCharacters(self):
+        print("", file=sys.stderr)
+        print("test011_disallowedOtherCharacters:", file=sys.stderr)
+        disallowedOtherChars = "\"<>[\\]^`{|}"
+            # not legal in URI path, query or fragment
+            # should include space and del, but cause some versions of Apache
+            # heartburn if you do
+            # Current versions of Python filter for control chars
+        good = []
+        bad = []
+        for c in (disallowedOtherChars):
+            try:
+                self.doPutExpectBad(self.key + "/x" + c + "x")
+                if SHOW_PATH:
+                    print("bad (pass)", file=sys.stderr)
+                bad.append(c)
+            except AssertionError as ex:
+                good.append(c)
+                if SHOW_PATH:
+                    print("good (fail)", file=sys.stderr)
+        print("good", good, file=sys.stderr)
+        print("bad", bad, file=sys.stderr)
+        self.assertTrue(len(good) == 0)
+        print(":test011_disallowedOtherCharacters", file=sys.stderr)
+
+    def test012_disallowedPathCharacters(self):
+        print("", file=sys.stderr)
+        print("test012_disallowedPathCharacters:", file=sys.stderr)
+        disallowedPathChars = ".~:@!$&'()*,;=#?"
+            # legal as part of a URI path, query or fragment (see RFC 3986)
+        good = []
+        bad = []
+        for c in (disallowedPathChars):
+            try:
+                self.doPutExpectBad(self.key + "/x" + c + "x")
+                if SHOW_PATH:
+                    print("bad (pass)", file=sys.stderr)
+                bad.append(c)
+            except AssertionError as ex:
+                good.append(c)
+                if SHOW_PATH:
+                    print("good (fail)", file=sys.stderr)
+        print("failed (good response)", good, file=sys.stderr)
+        print("succeeded (bad response)", bad, file=sys.stderr)
+        self.assertTrue(len(good) == 0)
+        print(":test012_disallowedPathCharacters", file=sys.stderr)
 
 
 class Tests_C_Basic(unittest.TestCase):
@@ -356,4 +415,5 @@ if __name__ == '__main__':
     print("Silo Base URL: ", sys.argv[1], file=sys.stderr)
     del sys.argv[1]
     unittest.main()
+
 
