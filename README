@@ -119,12 +119,16 @@ the later, let me know the details!
 ==== REPLIT VIA PHP WEB SERVER ====
 
 The 2021 releases have a Makefile included to make it easier to setup
-a PHP Web Server repl. Create a new PHP Web Server repl. Then get the
-Silo zip file by running
+a PHP Web Server based repl.  Note that the PHP Web server isn't
+designed for a production environment and if you need to do serious
+work with Silo you should be using Apache.
+
+Create a new PHP Web Server repl. Then get the Silo zip file by
+running
     wget https://github.com/jdougan/zeros-silo-2021/archive/refs/heads/master.zip
 in the repl's Shell tab.
 
-Then in the shell tab
+Then in the Shell tab
     unzip master.zip
     mv zeros-silo-2021-master/* .
     rm -rf zeros-silo-2021-master
