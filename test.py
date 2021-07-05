@@ -32,7 +32,7 @@ import unittest
 import urllib.parse
 
 # Prints extra telemetry to stderr if True
-SHOW_PATH = False
+SHOW_PATH = True
 
 NeedsKey = False
 #NeedsKey = True
@@ -148,6 +148,9 @@ class Tests_B_PathError(unittest.TestCase):
                 expectedString = "bad"
             message = "expected %s status, got %d, processing path %s" % \
                 (expectedString, status, path)
+            if SHOW_PATH:
+                print("doPut path ", path,file=sys.stderr)
+                print("doPut content ", content,file=sys.stderr)
             self.fail(message)
     
     def doPutExpectGood(self, path):
@@ -230,8 +233,8 @@ class Tests_B_PathError(unittest.TestCase):
                 good.append(c)
                 if SHOW_PATH:
                     print("good (fail)", file=sys.stderr)
-        print("good", good, file=sys.stderr)
-        print("bad", bad, file=sys.stderr)
+        print("failed (good response)", good, file=sys.stderr)
+        print("succeeded (bad response)", bad, file=sys.stderr)
         self.assertTrue(len(good) == 0)
         print(":test011_disallowedOtherCharacters", file=sys.stderr)
 
@@ -412,8 +415,9 @@ class Tests_Z_Timing(unittest.TestCase):
         self.timingRuns(10000)
         
 if __name__ == '__main__':
-    if len(sys.argv) <= 2:
-      print("test.py: Expecting argument of a Silo root URL followed by any unittest args")
+    if (len(sys.argv) <= 1):
+      print("test.py: Expecting argument of a Silo root URL followed by optional unittest args")
+      print(sys.argv)
       exit(1)
     silo = Silo(sys.argv[1])
     print("Silo Base URL: ", sys.argv[1], file=sys.stderr)
