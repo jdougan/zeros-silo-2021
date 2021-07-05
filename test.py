@@ -1,12 +1,16 @@
-"""
+r"""
     Silo -- a simple, general purpose file system for LSL via HTTP
-        version 2021-06-29
-        Updated to Python 3 by John Dougan
+        version 2021-07-04
+        Updated to improve test telmetry by John Dougan
 
         version 2006-07-09-beta
         by Zero Linden
+        version 2021-07-04
+        by John Dougan
     
         Copyright (c) 2006 Linden Lab
+        Licensed under the "MIT" open source license.
+        Changes Copyright (c) 2021 John Dougan
         Licensed under the "MIT" open source license.
     
     This file is only part of the whole distribution.
@@ -16,7 +20,7 @@
 
     There are behavior difference between web servers, these
     tests are biased for Apache.
-    The built-in PHP Web Server urlencodes some illegal chars
+    The built-in PHP Web Server handles some illegal path chars
     and then they just work.
 """
 
@@ -408,8 +412,8 @@ class Tests_Z_Timing(unittest.TestCase):
         self.timingRuns(10000)
         
 if __name__ == '__main__':
-    if len(sys.argv) != 2:
-      print("test.py: Expecting single argument of a Silo root URL")
+    if len(sys.argv) <= 2:
+      print("test.py: Expecting argument of a Silo root URL followed by any unittest args")
       exit(1)
     silo = Silo(sys.argv[1])
     print("Silo Base URL: ", sys.argv[1], file=sys.stderr)

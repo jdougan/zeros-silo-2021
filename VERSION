@@ -16,3 +16,6 @@ Changes Copyright (c) 2021 John Dougan
 
 2021-06-29
     Updated test.py to Python 3, added Repl.it support, dropped UUID.py as it is now in Python 3
+
+2021-07-04
+    Updated documentation. Tests have more feedback and a flag SHOW_PATHS to show more.

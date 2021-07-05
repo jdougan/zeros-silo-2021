@@ -2,7 +2,7 @@ Silo -- a simple, general purpose file system for LSL via HTTP
     version 2006-07-09-beta
     by Zero Linden
 
-    version 2021-06-29
+    version 2021-07-04
     Updated by John Dougan
 
     Copyright (c) 2006 Linden Lab
@@ -116,38 +116,49 @@ incompatibility between the script and your system.  If you suspect
 the later, let me know the details!
 
 
-==== REPLIT ====
+==== REPLIT VIA PHP WEB SERVER ====
 
-The 2021 releases have a Makefile included to make it easier to
-setup a PHP Web Server repl. Get the zip file from
-  https://github.com/jdougan/zeros-silo-2021/archive/refs/heads/master.zip
-Upload it to the repl by dragging to the left hand file list pane.
+The 2021 releases have a Makefile included to make it easier to setup
+a PHP Web Server repl. Create a new PHP Web Server repl. Then get the
+Silo zip file by running
+    wget https://github.com/jdougan/zeros-silo-2021/archive/refs/heads/master.zip
+in the repl's Shell tab.
 
-Then at the shell prompt
-  unzip zeros-silo-2021-master.zip
-  mv zeros-silo-2021-master/* .
-  rm -rf zeros-silo-2021-master
-  make all
+Then in the shell tab
+    unzip master.zip
+    mv zeros-silo-2021-master/* .
+    rm -rf zeros-silo-2021-master
+    make all
 
-Then hit the run button to start the server. The repl should open
-a web pane, it should show a Not Found error. The URL at the top of
-the web pane is the external url that replit has assigned this repl.
-Replit is taking care of TLS protocol conversion for you so it will
-be an https: URL.
-So the base url for accessing the Silo externally will look
-something like (NO trailing slash)
-  https://replname.username.repl.co/silo.php
+Then hit the run button at the top to start the server. The repl
+should open a web pane, it should show the output from the default
+index.php: "Hello, World". The url at the top of the web pane is the
+external url that Replit has assigned this repl. Replit is taking care
+of TLS protocol conversion for you so it will be an https: scheme
+url.
+So the base url for accessing the Silo externally will look something
+like
+    https://replname.username.repl.co/silo.php
+Some documentation on Replit's web access is at
+    https://docs.replit.com/hosting/deploying-http-servers 
 
-Run `make tests` and check test.log to be sure they have passed.
-If so, the silo is ready to use.
+Run `make tests` and check test.log.  In the PHP Web Server
+configuration some of the character path tests (Tests_B_PathError)
+will "fail". What is actually happening is that the PHP Web Server is
+handling some situations that Apache does not, making it work with an
+altered URL instead of the expected error. However if you stick with
+the valid Silo path characters
+    - + _ % 0-9 a-z A-Z
+there shouldn't be a problem.
 
-There is a timeout system for "inactive" repls with an optional
-auto restart feature if you are paying:
-  https://docs.replit.com/repls/always-on
+Replit has a timeout system for "inactive" repls with an optional auto
+restart feature if you are paying:
+    https://docs.replit.com/repls/always-on
 
 If you really need to keep the repl up at all times, get one of the
-apps/code that will keep http events going at it to keep the
-session alive. This is used to run a lot of discord bots.
+apps/libraries that will regularly push http requests at the server to
+keep the session alive. These are used to run a lot of discord bots
+and for system uptime monitoring.
 
 
 ==== CONCEPTS ====
@@ -191,12 +202,14 @@ When you end a path in a slash, these methods can be used:
     DELETE - delete all paths under this one
 
 When storing data (PUT), you must be sure that both the 'content-type'
-(MIME Type) and 'content-length' headers are set.  When accessing
-from LSL, these are automatically set.
+(MIME Type) and 'content-length' headers are set.  When accessing from
+LSL, these are automatically set. Silo will also automatically store
+and retrieve any HTTP Headers starting with 'X-SecondLife-' along with
+the body data.
 
 All operations will return a non-error status (2xx) if the operation
 completed correctly.  For the PUT operation, you can use the status
-code to discover if the path was newsly created: It returns
+code to discover if the path was newly created: It returns
 201 in that case.
 
 There is no need to store data a intermediate nodes before writing
@@ -207,7 +220,7 @@ Note that you cannot use a path of just "/".  This means that no
 one can delete the entire silo, nor can anyone find out all the
 paths in the silo.  Because of this, if you use an unguessable UUID
 as the first path component, other users of the same silo cannot
-access your data unless you give them the UUID.
+access your other data unless you give them the UUID.
 
 
 ---- From LSL ----
@@ -283,9 +296,14 @@ silo easily using curl:
 
 ==== CONTACT ====
 
-This script was written by Zero Linden.  You can conact him at
+This script was written by Zero Linden.  You can contact him at
     zero.linden@lindenlab.com
 
-Zero Linden (Mark Lentczner) is no lnger working for Linden Labs and as far as I can tell has nothing more to do with Second Life.
-These scripts have been updated by John Dougan <jdougan@acm.org> and there is a github repositoy at https://github.com/jdougan/zeros-silo-2021 . The original 2006 version is in a github repository at https://github.com/jdougan/zeros-silo .
+Zero Linden (Mark Lentczner) is no longer working for Linden Labs and
+as far as I can tell has nothing more to do with Second Life or Silo.
+These scripts have been updated by John Dougan <jdougan@acm.org> and
+there is a github repositoy at
+    https://github.com/jdougan/zeros-silo-2021 
+The original 2006 version is in a github repository at
+    https://github.com/jdougan/zeros-silo 
 
