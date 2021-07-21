@@ -132,28 +132,33 @@ Then in the Shell tab
     unzip master.zip
     mv zeros-silo-2021-master/* .
     rm -rf zeros-silo-2021-master
-    make all
+    make replit
 
 Then hit the run button at the top to start the server. The repl
 should open a web pane, it should show the output from the default
-index.php: "Hello, World". The url at the top of the web pane is the
-external url that Replit has assigned this repl. Replit is taking care
-of TLS protocol conversion for you so it will be an https: scheme
-url.
-So the base url for accessing the Silo externally will look something
-like
+index.php "Hello, World" or a Not Found error if you choose to delete
+index.php. The URL at the top of the web pane is the external URL that
+Replit has assigned this repl. Replit is taking care of TLS protocol
+conversion for you so it will be an https: scheme URL. So the base URL
+for accessing the Silo externally will look something like
     https://replname.username.repl.co/silo.php
+
 Some documentation on Replit's web access is at
     https://docs.replit.com/hosting/deploying-http-servers 
 
-Run `make tests` and check test.log.  In the PHP Web Server
-configuration some of the character path tests (Tests_B_PathError)
-will "fail". What is actually happening is that the PHP Web Server is
-handling some situations that Apache does not, making it work with an
-altered URL instead of the expected error. However if you stick with
-the valid Silo path characters
+Run `make tests` and check test.log.  In the Replit PHP Web Server
+configuration the use of '..' in the path tests may "fail". What is
+actually happening is that the PHP Web Server is silently handling
+some situations that Apache does not, making it work with an altered
+URL instead of the expected error.
+
+If you run the tests against a Replit external https URL, you will see
+additional test failures in checking for disallowed path characters.
+As near as I can tell, this is in Replit's TLS protocol conversion
+where it appears to be doing character conversion for you. However if
+you stick with the valid Silo path characters
     - + _ % 0-9 a-z A-Z
-there shouldn't be a problem.
+by urlencoding there shouldn't be a problem.
 
 Replit has a timeout system for "inactive" repls with an optional auto
 restart feature if you are paying:
@@ -207,9 +212,10 @@ When you end a path in a slash, these methods can be used:
 
 When storing data (PUT), you must be sure that both the 'content-type'
 (MIME Type) and 'content-length' headers are set.  When accessing from
-LSL, these are automatically set. Silo will also automatically store
-and retrieve any HTTP Headers starting with 'X-SecondLife-' along with
-the body data.
+LSL, these are automatically set. Silo will automatically store (but
+not currently retrieve) any HTTP headers starting with 'X-SecondLife-'
+along with the Content-Type and body data. These headers are stored in
+the *.meta files.
 
 All operations will return a non-error status (2xx) if the operation
 completed correctly.  For the PUT operation, you can use the status

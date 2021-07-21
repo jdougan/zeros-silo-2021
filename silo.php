@@ -11,7 +11,6 @@
     This file is only part of the whole distribution.
         silo.php -- the main impelmentation
 */
-
 header('Content-Type: text/plain;charset=utf-8');
 
 $hexPat = "[0-9a-f]";
@@ -101,7 +100,9 @@ function getFile($dataFile, $metaFile)
 	if (!is_readable($dataFile)) {
 	   httpError(404, "Not Found", "no data for");
     }
-    
+
+    // Swap to this to extend the headers in the response, needs tests before release
+    // $replayedHeaderLines = "{^(Content-Type|X-SecondLife-\\S*)\\s*:}i";
     $replayedHeaderLines = "{^(Content-Type)\\s*:}i";
     foreach (file($metaFile) as $line) {
         if (preg_match($replayedHeaderLines, $line)) {
@@ -114,6 +115,7 @@ function getFile($dataFile, $metaFile)
 
 function putFile($dataFile, $metaFile)
 {
+    // global $stderr;
     mkdirAsNeeded(dirname($dataFile));
     
     $preexists = file_exists($dataFile);
@@ -125,6 +127,7 @@ function putFile($dataFile, $metaFile)
     $storedHeaders = "{^(Content-Type|X-SecondLife-\\S*)\\s*$}i";
     $h = fopen($metaFile, "w");
     foreach (apache_request_headers() as $header => $value) {
+        // fprintf($stderr , "%s : %s\n" , $header , $value );
         if (preg_match($storedHeaders, $header, $matches)) {
             fwrite($h, strtolower($matches[1]) . ": $value\n");
         }
@@ -178,6 +181,7 @@ function delDir($dirPath)
     }
 }
 
+// $stderr = fopen('php://stderr', 'w');
 
 $requestURI = $_SERVER['REQUEST_URI'];
 $scriptName = $_SERVER['SCRIPT_NAME'];
@@ -210,6 +214,6 @@ else {
     elseif ($method == 'DELETE')    delDir($dirPath);
     else                            httpError(405, "Method Not Allowed");
 }
-
+// fclose($stderr);
 
 ?>

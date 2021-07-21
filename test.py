@@ -80,7 +80,7 @@ class Silo:
 
         return str(rawContent, charset)
 
-    def rawConnect(self, verb, path, rawBody=None, headers={}):
+    def rawConnect(self, verb, path, rawBody=None, reqheaders={}):
         if (self.baseScheme == 'https'):
             connection = http.client.HTTPSConnection(self.baseHost)
         else:
@@ -88,32 +88,52 @@ class Silo:
         if SHOW_PATH :
             print("", file=sys.stderr)
             print(self.basePath + path, file=sys.stderr)
-        connection.request(verb, self.basePath + path, rawBody, headers)
+        connection.request(verb, self.basePath + path, rawBody, reqheaders)
         response = connection.getresponse()
         status = response.status
         rawContent = response.read()
+        respheaders = response.getheaders()
         mimeType = response.getheader(
                         'Content-Type', 'application/octet-stream')
             # according to RFC 2616, section 7.2.1, we are allowed to guess
             # the mime type in the absence of the Content-Type header
             # however, LSL takes a stricter view and will not guess text
         connection.close()
-        return (status, rawContent, mimeType)
+        return (status, rawContent, mimeType, respheaders)
 
-    def connect(self, verb, path, body=None, encoding='utf-8'):
+    def connect(self, verb, path, body=None, encoding='utf-8', reqheaders={}):
         (rawBody, headers) = self.encode(body, encoding)
-        (status, rawContent, mimeType) = \
-             self.rawConnect(verb, path, rawBody, headers)
+        reqheaders.update(headers)
+        (status, rawContent, mimeType, respheaders ) = \
+             self.rawConnect(verb, path, rawBody, reqheaders)
         content = self.decode(rawContent, mimeType)
         return (status, content)
+    
+    def connectHeaders(self, verb, path, body=None, encoding='utf-8', reqheaders={}):
+        (rawBody, headers) = self.encode(body, encoding)
+        reqheaders.update(headers)
+        (status, rawContent, mimeType, respheaders ) = \
+             self.rawConnect(verb, path, rawBody, reqheaders)
+        content = self.decode(rawContent, mimeType)
+        return (status, content, respheaders)
     
     def get(self, path):
         (status, content) = self.connect("GET", path)
         self.ensureGoodStatus(status, content)
         return content
     
-    def put(self, path, body, encoding='utf-8'):
-        (status, content) = self.connect("PUT", path, body, encoding)
+    def getheaders(self, path):
+        (status, content, headers) = self.connectHeaders("GET", path)
+        self.ensureGoodStatus(status, content)
+        return (content, headers)
+
+    def head(self, path):
+        (status, content, headers) = self.connectHeaders("HEAD", path)
+        self.ensureGoodStatus(status, content)
+        return headers
+    
+    def put(self, path, body, encoding='utf-8', headers={}):
+        (status, content) = self.connect("PUT", path, body, encoding, reqheaders=headers)
         self.ensureGoodStatus(status, content)
         return content
     
@@ -133,7 +153,6 @@ silo = None
 class Tests_A_Setup(unittest.TestCase):
     def test000_baseURL(self):
         self.assertTrue(silo.baseScheme in ['http' , 'https'])
-        # self.assertEqual(silo.baseScheme, 'http')
         self.assertTrue(silo.baseHost)
         self.assertTrue(silo.basePath)
 
@@ -328,6 +347,7 @@ class Tests_C_Basic(unittest.TestCase):
         (status, content) = silo.connect("PUT", k, "second time")
         self.assertEqual(status, 200)
     
+
 class Tests_D_RoundTrip(unittest.TestCase):
     key = "/fa4b13c9-ed3c-462a-be6a-011c1bc464a9"
     
@@ -340,6 +360,16 @@ class Tests_D_RoundTrip(unittest.TestCase):
         silo.missing(self.key + "/")
     
     def roundTrip(self, value, encoding="utf-8"):
+        silo.put(self.key, value, encoding)
+        (content , headers) = silo.getheaders(self.key)
+        #print()
+        #print("encoding", encoding)
+        #print("HEADERS", headers)
+        contenttype = next(x[1] for x in headers if (x[0].lower() =='content-type') )
+        self.assertEqual(contenttype, 'text/plain;charset='+encoding)
+        self.assertEqual(content, value)
+    
+    def roundTripXXX(self, value, encoding="utf-8"):
         silo.put(self.key, value, encoding)
         self.assertEqual(silo.get(self.key), value)
     
@@ -369,6 +399,43 @@ class Tests_D_RoundTrip(unittest.TestCase):
 
     def test007_encodingUTF16BE(self):
         self.roundTrip('\u00C5ngstr\u00F6m \u03b2 \u2222', 'utf-16be')
+
+
+class Tests_E_Headers(unittest.TestCase):
+    key = "/b95a553f-fb65-4f0e-b1ca-c6e3f1bb93fc"
+    
+    def setUp(self):
+        silo.delete(self.key)
+        silo.delete(self.key + "/")
+         
+    def test000_clear(self):
+        silo.missing(self.key)
+        silo.missing(self.key + "/")
+    
+    def roundTrip(self, keyExt , value, encoding="utf-8", reqheaders={}):
+        fullKey = self.key + '/' + keyExt
+        silo.put(fullKey, value, encoding, headers=reqheaders)
+        (content , respheaders) = silo.getheaders(fullKey)
+        #
+        # Add asserts here to verify stuff is being returned, once
+        # the silo is cnfigured to do that
+        # Turn the following on to eyeball the state
+        if False:
+            print("", file=sys.stderr)
+            print("putheaders", reqheaders, file=sys.stderr)
+            print("getheaders", respheaders, file=sys.stderr)
+    
+    def test001_noheaders(self):
+        self.roundTrip('1a', "", reqheaders={})
+        self.roundTrip('1b', " ", reqheaders={})
+        self.roundTrip('1c', "a", reqheaders={})
+        self.roundTrip('1d', "&<=>", reqheaders={})
+
+    def test002_simple(self):
+        self.roundTrip('2a', "a", reqheaders={'X-SecondLife-Note':'Aa'})
+        self.roundTrip('2b', "b", reqheaders={'X-SecondLife-ApiLimit':'Bb', 'X-SecondLife-ApiLimit':'Cc'})
+        self.roundTrip('2c', "c", reqheaders={'X-SecondLife-Note':'Cc', 'X-SecondLife-Note2':'Ccc'})
+        self.roundTrip('2d', "d", reqheaders={'X-ShouldNotWork':'d'})
 
 
 class Tests_Z_Timing(unittest.TestCase):
@@ -414,6 +481,7 @@ class Tests_Z_Timing(unittest.TestCase):
     def time10k(self):
         self.timingRuns(10000)
         
+
 if __name__ == '__main__':
     if (len(sys.argv) <= 1):
       print("test.py: Expecting argument of a Silo root URL followed by optional unittest args")
