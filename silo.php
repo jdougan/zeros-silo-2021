@@ -11,6 +11,11 @@
     This file is only part of the whole distribution.
         silo.php -- the main impelmentation
 */
+
+#ini_set('display_startup_errors', 1);
+#ini_set('display_errors', 1);
+#error_reporting(-1);
+
 header('Content-Type: text/plain;charset=utf-8');
 
 $hexPat = "[0-9a-f]";
@@ -97,8 +102,8 @@ function rmdirAndContents($dir)
 
 function getFile($dataFile, $metaFile)
 {    
-	if (!is_readable($dataFile)) {
-	   httpError(404, "Not Found", "no data for");
+    if (!is_readable($dataFile)) {
+       httpError(404, "Not Found", "no data fo file");
     }
 
     // Swap to this to extend the headers in the response, needs tests before release
@@ -113,6 +118,23 @@ function getFile($dataFile, $metaFile)
     copy($dataFile, "php://output");
 }
 
+function headFile($dataFile, $metaFile)
+{    
+    if (!is_readable($dataFile)) {
+       httpError(404, "Not Found", "no data for head file");
+    }
+
+    // Swap to this to extend the headers in the response, needs tests before release
+    // $replayedHeaderLines = "{^(Content-Type|X-SecondLife-\\S*)\\s*:}i";
+    $replayedHeaderLines = "{^(Content-Type)\\s*:}i";
+    foreach (file($metaFile) as $line) {
+        if (preg_match($replayedHeaderLines, $line)) {
+            header($line);
+        }
+    }
+    
+}
+
 function putFile($dataFile, $metaFile)
 {
     // global $stderr;
@@ -121,7 +143,7 @@ function putFile($dataFile, $metaFile)
     $preexists = file_exists($dataFile);
     copy("php://input", $dataFile);
 	if (!is_writable($dataFile)) {
-	   httpError(403, "Forbidden", "can't modify");
+	   httpError(403, "Forbidden", "can't modify file");
     }
     
     $storedHeaders = "{^(Content-Type|X-SecondLife-\\S*)\\s*$}i";
@@ -143,7 +165,7 @@ function delFile($dataFile, $metaFile)
 {
 	if (!unlink($dataFile)  ||  !unlink($metaFile)) {
 	   if (is_file($dataFile)  ||  is_file($metaFile)) {
-           httpError(403, "Forbidden", "can't modify");
+           httpError(403, "Forbidden", "can't modify file");
        }
     }
 }
@@ -153,12 +175,12 @@ function getDir($dirPath)
     global $filePattern;
     
     if (!is_dir($dirPath)) {
-        httpError(404, "Not Found", "no data at");
+        httpError(404, "Not Found", "no dir data at");
     }
     
     $h = opendir($dirPath);
     if (!$h) {
-       httpError(403, "Forbidden", "can't read");
+       httpError(403, "Forbidden", "can't read dir");
     }
     $files = array();
     while (($f = readdir($h)) !== false) {
@@ -177,7 +199,7 @@ function delDir($dirPath)
 {
     rmdirAndContents($dirPath);
 	if (is_dir($dirPath)) {
-	   httpError(403, "Forbidden", "can't modify");
+	   httpError(403, "Forbidden", "can't modify dir");
     }
 }
 
@@ -203,16 +225,17 @@ if (! $parse['isDir']) {
     $metaFile = $parse['translatedPath'] . ".meta";
 
     if     ($method == 'GET')       getFile($dataFile, $metaFile);
+    elseif ($method == 'HEAD')      headFile($dataFile, $metaFile);
     elseif ($method == 'PUT')       putFile($dataFile, $metaFile);
     elseif ($method == 'DELETE')    delFile($dataFile, $metaFile);
-    else                            httpError(405, "Method Not Allowed");
+    else                            httpError(405, "Method Not Allowed" , ("Method  $method Not Allowed on File "));
 }
 else {
     $dirPath = $parse['translatedPath'];
 
     if     ($method == 'GET')       getDir($dirPath);
     elseif ($method == 'DELETE')    delDir($dirPath);
-    else                            httpError(405, "Method Not Allowed");
+    else                            httpError(405, "Method Not Allowed" , ("Method $method Not Allowed on Dir "));
 }
 // fclose($stderr);
 

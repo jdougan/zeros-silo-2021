@@ -203,6 +203,7 @@ access that data, unless you give them the key.
 
 Data is stored and accessed via standard HTTP methods with a path:
     GET - fetch data at the path
+    HEAD - Like GET, but only fetches headers at the path
     PUT - store data at the path
     DELETE - remove data at the path
 

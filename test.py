@@ -55,7 +55,7 @@ class Silo:
         
     def ensureGoodStatus(self, status, content):
         if not self.goodStatus(status):
-            raise SiloException("unexpected http error status %d: %s" % (status, str(content)))
+            raise SiloException("unexpected http error status %d: %s " % (status, str(content)))
     
     def encode(self, body, encoding='utf-8'):
         headers = {}
@@ -80,15 +80,24 @@ class Silo:
 
         return str(rawContent, charset)
 
-    def rawConnect(self, verb, path, rawBody=None, reqheaders={}):
+    def rawConnect(self, verb, path, rawBody=None, reqheaders=None):
+        # reqheaders can be None or a list of pairs
         if (self.baseScheme == 'https'):
             connection = http.client.HTTPSConnection(self.baseHost)
         else:
             connection = http.client.HTTPConnection(self.baseHost)
         if SHOW_PATH :
             print("", file=sys.stderr)
-            print(self.basePath + path, file=sys.stderr)
-        connection.request(verb, self.basePath + path, rawBody, reqheaders)
+            print(verb,self.basePath + path, file=sys.stderr)
+        if (rawBody == None):
+            reqheadersdict ={}
+        else:
+            if False and ((reqheaders == None) or (len(reqheaders) == 0)) :
+                raise SiloException("rawConnect: reqheaders empty, content-type at minimum:" , str(reqheaders) )
+            else:
+                print(reqheaders)
+                reqheadersdict = dict(reqheaders)
+        connection.request(verb, self.basePath + path, rawBody, reqheadersdict)
         response = connection.getresponse()
         status = response.status
         rawContent = response.read()
@@ -101,21 +110,21 @@ class Silo:
         connection.close()
         return (status, rawContent, mimeType, respheaders)
 
-    def connect(self, verb, path, body=None, encoding='utf-8', reqheaders={}):
-        (rawBody, headers) = self.encode(body, encoding)
-        reqheaders.update(headers)
+    def connectHeaders(self, verb, path, body=None, encoding='utf-8', reqheaders=None):
+        (rawBody, encheaders) = self.encode(body, encoding)
+        if reqheaders == None :
+            headers = encheaders.items()
+        else:
+            headers = reqheaders + list(encheaders.items())
         (status, rawContent, mimeType, respheaders ) = \
-             self.rawConnect(verb, path, rawBody, reqheaders)
-        content = self.decode(rawContent, mimeType)
-        return (status, content)
-    
-    def connectHeaders(self, verb, path, body=None, encoding='utf-8', reqheaders={}):
-        (rawBody, headers) = self.encode(body, encoding)
-        reqheaders.update(headers)
-        (status, rawContent, mimeType, respheaders ) = \
-             self.rawConnect(verb, path, rawBody, reqheaders)
+             self.rawConnect(verb, path, rawBody, headers)
         content = self.decode(rawContent, mimeType)
         return (status, content, respheaders)
+    
+    def connect(self, verb, path, body=None, encoding='utf-8', reqheaders=None):
+        (status, content, respheaders) = \
+            self.connectHeaders(verb, path, body=body, encoding=encoding, reqheaders=reqheaders)
+        return (status, content)
     
     def get(self, path):
         (status, content) = self.connect("GET", path)
@@ -132,7 +141,7 @@ class Silo:
         self.ensureGoodStatus(status, content)
         return headers
     
-    def put(self, path, body, encoding='utf-8', headers={}):
+    def put(self, path, body, encoding='utf-8', headers=None):
         (status, content) = self.connect("PUT", path, body, encoding, reqheaders=headers)
         self.ensureGoodStatus(status, content)
         return content
@@ -349,6 +358,9 @@ class Tests_C_Basic(unittest.TestCase):
     
 
 class Tests_D_RoundTrip(unittest.TestCase):
+    # We check to see if the contyent-type and contents are
+    # correctyly returned, which is a minimal test of the main
+    # functions
     key = "/fa4b13c9-ed3c-462a-be6a-011c1bc464a9"
     
     def setUp(self):
@@ -361,13 +373,16 @@ class Tests_D_RoundTrip(unittest.TestCase):
     
     def roundTrip(self, value, encoding="utf-8"):
         silo.put(self.key, value, encoding)
+        givencontenttype =  'text/plain;charset=' + encoding
+        #
         (content , headers) = silo.getheaders(self.key)
-        #print()
-        #print("encoding", encoding)
-        #print("HEADERS", headers)
         contenttype = next(x[1] for x in headers if (x[0].lower() =='content-type') )
-        self.assertEqual(contenttype, 'text/plain;charset='+encoding)
+        self.assertEqual(contenttype, givencontenttype)
         self.assertEqual(content, value)
+        #
+        headheaders = silo.head(self.key)
+        headcontenttype = next(x[1] for x in headheaders if (x[0].lower() =='content-type') )
+        self.assertEqual(headcontenttype, givencontenttype)
     
     def roundTripXXX(self, value, encoding="utf-8"):
         silo.put(self.key, value, encoding)
@@ -401,6 +416,7 @@ class Tests_D_RoundTrip(unittest.TestCase):
         self.roundTrip('\u00C5ngstr\u00F6m \u03b2 \u2222', 'utf-16be')
 
 
+#class Tests_E_Headers:
 class Tests_E_Headers(unittest.TestCase):
     key = "/b95a553f-fb65-4f0e-b1ca-c6e3f1bb93fc"
     
@@ -412,8 +428,11 @@ class Tests_E_Headers(unittest.TestCase):
         silo.missing(self.key)
         silo.missing(self.key + "/")
     
-    def roundTrip(self, keyExt , value, encoding="utf-8", reqheaders={}):
+    def roundTrip(self, keyExt , value, encoding="utf-8", reqheaders=[]):
         fullKey = self.key + '/' + keyExt
+        if False:
+            print("", file=sys.stderr)
+            print("putheaders", reqheaders, file=sys.stderr)
         silo.put(fullKey, value, encoding, headers=reqheaders)
         (content , respheaders) = silo.getheaders(fullKey)
         #
@@ -421,21 +440,20 @@ class Tests_E_Headers(unittest.TestCase):
         # the silo is cnfigured to do that
         # Turn the following on to eyeball the state
         if False:
-            print("", file=sys.stderr)
-            print("putheaders", reqheaders, file=sys.stderr)
             print("getheaders", respheaders, file=sys.stderr)
     
     def test001_noheaders(self):
-        self.roundTrip('1a', "", reqheaders={})
-        self.roundTrip('1b', " ", reqheaders={})
-        self.roundTrip('1c', "a", reqheaders={})
-        self.roundTrip('1d', "&<=>", reqheaders={})
+        self.roundTrip('1a', "", reqheaders=[])
+        self.roundTrip('1a', "", reqheaders=[])
+        self.roundTrip('1b', " ", reqheaders=[])
+        self.roundTrip('1c', "a", reqheaders=[])
+        self.roundTrip('1d', "&<=>", reqheaders=[])
 
     def test002_simple(self):
-        self.roundTrip('2a', "a", reqheaders={'X-SecondLife-Note':'Aa'})
-        self.roundTrip('2b', "b", reqheaders={'X-SecondLife-ApiLimit':'Bb', 'X-SecondLife-ApiLimit':'Cc'})
-        self.roundTrip('2c', "c", reqheaders={'X-SecondLife-Note':'Cc', 'X-SecondLife-Note2':'Ccc'})
-        self.roundTrip('2d', "d", reqheaders={'X-ShouldNotWork':'d'})
+        self.roundTrip('2a', "a", reqheaders=[('X-SecondLife-Note','Aa')])
+        self.roundTrip('2b', "b", reqheaders=[('X-SecondLife-ApiLimit','Bb'), ('X-SecondLife-ApiLimit','Cc')])
+        self.roundTrip('2c', "c", reqheaders=[('X-SecondLife-Note', 'Cc'), ('X-SecondLife-Note2', 'Ccc')] )
+        self.roundTrip('2d', "d", reqheaders=[('X-ShouldNotWork', 'd')])
 
 
 class Tests_Z_Timing(unittest.TestCase):
