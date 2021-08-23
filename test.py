@@ -5,7 +5,7 @@ r"""
 
         version 2006-07-09-beta
         by Zero Linden
-        version 2021-07-04
+        version 2021-08-22
         by John Dougan
     
         Copyright (c) 2006 Linden Lab

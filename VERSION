@@ -19,3 +19,6 @@ Changes Copyright (c) 2021 John Dougan
 
 2021-07-04
     Updated documentation. Tests have more feedback and a flag SHOW_PATHS to show more.
+
+2021-08-22
+    Updated documentation. HEAD method now supported. Tests check more return data and HEAD..

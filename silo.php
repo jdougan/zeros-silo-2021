@@ -4,8 +4,12 @@
     Silo -- a simple, general purpose file system for LSL via HTTP
         version 2006-07-09-beta
         by Zero Linden
+        version 2021-08-22
+        by John Dougan
     
         Copyright (c) 2006 Linden Lab
+        Licensed under the "MIT" open source license.
+        Changes Copyright (c) 2021 John Dougan
         Licensed under the "MIT" open source license.
     
     This file is only part of the whole distribution.
